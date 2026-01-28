@@ -2,6 +2,7 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import tempfile
 import os
+from analyzer import analyze_swing, VideoProcessingError, NoPoseDetectedError, LowConfidenceError
 
 app = FastAPI()
 
@@ -31,14 +32,20 @@ async def analyze(file: UploadFile = File(...)):
             content = await file.read()
             temp_file.write(content)
 
-        # TODO: Process video with analyzer
-        # feedback = analyze_swing(temp_path)
+        result = analyze_swing(temp_path)
 
         return {
-            "feedback": [
-                "Video uploaded successfully. Analysis not yet implemented."
-            ]
+            "frames_analyzed": len(result['frames_data']),
+            "avg_confidence": result['avg_confidence'],
+            "video_info": result['video_info'],
+            "feedback": ["Video processed successfully. Metrics not yet implemented."]
         }
+    except VideoProcessingError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except NoPoseDetectedError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except LowConfidenceError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing video: {str(e)}")
     finally:

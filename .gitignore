@@ -5,3 +5,6 @@ __pycache__/
 node_modules/
 CLAUDE.md
 info/
+test-videos/
+pose_landmarker.task
+.DS_Store
