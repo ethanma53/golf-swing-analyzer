@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import tempfile
 import os
 from analyzer import analyze_swing, VideoProcessingError, NoPoseDetectedError, LowConfidenceError
+from keyframes import detect_keyframes, KeyframeDetectionError
 
 app = FastAPI()
 
@@ -33,11 +34,21 @@ async def analyze(file: UploadFile = File(...)):
             temp_file.write(content)
 
         result = analyze_swing(temp_path)
+        keyframes = detect_keyframes(result)
 
         return {
             "frames_analyzed": len(result['frames_data']),
             "avg_confidence": result['avg_confidence'],
             "video_info": result['video_info'],
+            "keyframes": {
+                "address_frame": keyframes['address']['frame_index'],
+                "address_timestamp": keyframes['address']['timestamp'],
+                "top_frame": keyframes['top_of_backswing']['frame_index'],
+                "top_timestamp": keyframes['top_of_backswing']['timestamp'],
+                "impact_frame": keyframes['impact']['frame_index'],
+                "impact_timestamp": keyframes['impact']['timestamp'],
+                "swing_duration": keyframes['detection_metadata']['swing_duration'],
+            },
             "feedback": ["Video processed successfully. Metrics not yet implemented."]
         }
     except VideoProcessingError as e:
@@ -45,6 +56,8 @@ async def analyze(file: UploadFile = File(...)):
     except NoPoseDetectedError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except LowConfidenceError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except KeyframeDetectionError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing video: {str(e)}")
